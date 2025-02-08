@@ -40,10 +40,6 @@ class Model:
     self.scores = torch.tensor(self.scores)
     self.scores.fill_(1 / self.image_count)
 
-    self.histogram_bins = 32
-    #self.histograms = self.load_histograms()
-    self.histogram_scores = np.empty(self.image_count)
-
   def reset_scores(self):
     self.scores.fill_(1 / self.image_count)
 
@@ -166,37 +162,6 @@ class Model:
 
     return np.argsort(scores)
 
-
-  def get_image_histogram(self, path):
-    height = 128
-    width = 128
-
-    imgOriginal = Image.open(path)
-
-    img = imgOriginal.resize((width, height))
-
-    imgPixels = img.load()
-
-    step = 256 / self.histogram_bins
-
-    histogram = np.zeros((self.histogram_bins, self.histogram_bins, self.histogram_bins))
-    histogram_flat = np.zeros((self.histogram_bins ** 3))
-
-    for y in range(0, height):
-      for x in range(0, width):
-        rgb = imgPixels[x, y]
-        rgbRescaled = tuple(math.floor(channel / step) for channel in rgb)
-        histogram[rgbRescaled] += 1
-
-    idx = 0
-    for r in range(self.histogram_bins):
-      for g in range(self.histogram_bins):
-        for b in range(self.histogram_bins):
-          histogram_flat[idx] = histogram[r][g][b]
-          idx += 1
-
-    return histogram_flat
-
   def get_image_corners(self, filename):
     image = Image.open(filename)
     width, height = image.size
@@ -216,35 +181,7 @@ class Model:
     ]
 
     return corners
-
-  def save_clip_quarters(self, filenames):
-    corner_features = [
-      [], # left upper
-      [], # left lower
-      [], # right upper
-      [], # right lower
-    ]
-
-    with torch.no_grad(), torch.cuda.amp.autocast():
-      for i in range(len(filenames)):
-        corners = self.get_image_corners(filenames[i])
-
-        if i % 100 == 0:
-          print("processed images:", i)
-        #i += 1 #TODO: this +1 means only half of the embeddings were made
-
-        for corner_idx in range(len(corner_features)):
-          preprocessed = self.preprocess(corners[corner_idx]).unsqueeze(0).to(self.device)
-          corner_features[corner_idx].append(self.model.encode_image(preprocessed).to("cpu"))
-          preprocessed.to("cpu") 
-
-    concat_corners = []
-    for corner_idx in range(len(corner_features)):
-      concat_corners.append(torch.concat(corner_features[corner_idx]))
-
-    with open('corner_features_new.pickle', 'wb') as handle:
-      pickle.dump(concat_corners, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
+  
   def load_clip_quarters(self):
     with open('corner_features_strong.pickle', 'rb') as handle:
       return pickle.load(handle)
@@ -252,17 +189,6 @@ class Model:
   def load_clip_quarters_old(self):
     with open('corner_features.pickle', 'rb') as handle:
       return pickle.load(handle)
-
-  def save_clip(self, filenames):
-    features = []
-    with torch.no_grad(), torch.cuda.amp.autocast():
-      for i in range(len(filenames)):
-        preprocessed = self.preprocess(Image.open(filenames[i])).unsqueeze(0).to(self.device)
-        if i % 100 == 0:
-          print("processed images:", i)
-        features.append(self.model.encode_image(preprocessed).to("cpu"))
-        preprocessed.to("cpu") 
-        #i += 1 #TODO: this +1 means only half of the embeddings were made
 
     concat = torch.concat(features)
 
@@ -277,37 +203,3 @@ class Model:
     with open('features_old.pkl', 'rb') as handle:
     #with open('embeds/features.pickle', 'rb') as handle:
       return pickle.load(handle)
-
-  def cosine_distance_histogram(self, h1, h2):
-    numerator = h1 @ h2
-    h1SqrSum = np.sum(np.square(h1))
-    h2SqrSum = np.sum(np.square(h2))
-    denominator = math.pow(h1SqrSum, 1/2) * math.pow(h2SqrSum, 1/2)
-
-    return 1 - numerator / denominator
-  
-  def save_histograms(self, filenames):
-    histograms = []
-    idx = 0
-    for path in filenames:
-      if idx % 100 == 0:
-        print("processed histograms:", idx)
-      histograms.append(self.get_image_histogram(path))    
-      idx += 1  
-
-    with open('image_histograms.pickle', 'wb') as handle:
-      pickle.dump(histograms, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-  def load_histograms(self):
-    with open('image_histograms.pickle', 'rb') as handle:
-      return pickle.load(handle)
-    
-  def update_histogram_scores(self, query_idx):
-    for i in range(len(self.histograms)):
-      self.histogram_scores[i] = self.cosine_distance_histogram(self.histograms[query_idx], self.histograms[i])
-
-
-  def get_top_histogram_score_indices(self, count):
-    top_k = np.argsort(self.histogram_scores)
-    return top_k[:count]
-  

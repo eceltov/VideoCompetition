@@ -39,8 +39,6 @@ corner_width = tools_width // 2
 corner_height = corner_width // 2
 
 logic = Logic(shown, button_width, button_height, corner_width, corner_height)
-#logic.model.save_clip(logic.filenames)
-#logic.model.save_clip_quarters(logic.filenames)
 
 previous_text = ""
 previous_corner_texts = ["", "", "", ""]
@@ -395,18 +393,6 @@ def image_score_search_shortcut():
     last_corner_images[i] = logic.model.selected_corner_images[i]
   display_images()
 
-def histogram_score_search_shortcut():
-  if shortcuts_disabled:
-    return
-
-  if len(logic.selected_images) <= 0:
-    return
-
-  likeID = logic.selected_images[0]
-  logic.model.update_histogram_scores(likeID)
-  logic.append_history(logic.model.get_top_histogram_score_indices(shown)[:shown].tolist())
-  display_images()
-
 def blacklist_shown_frames_shortcut():
   if shortcuts_disabled:
     return
@@ -451,15 +437,6 @@ def view_full_image_shortcut():
 def reset_scores_shortcut():
   logic.model.reset_scores()
   update_non_zero_scores_text()
-
-def send_image_callback():
-  if len(logic.selected_images) <= 0:
-    return
-  
-  path = logic.frame_idx_to_frame_path_map[logic.selected_images[0]]
-  # there is no send image functionality
-  # result = send_image(path)
-  # dpg.set_value("response", result)
 
 def toggle_shortcuts_callback():
   set_shortcuts_disabled(not shortcuts_disabled)
@@ -559,10 +536,6 @@ with dpg.window(label="Tool Window", width=tools_width, height=screen_height, no
     dpg.add_input_text(tag="search_3")
     dpg.add_text("x", tag="corner_weight_extra_3")
     dpg.add_text("1", tag="corner_weight_3")
-
-  dpg.add_text("")
-  dpg.add_button(label="Submit", callback=send_image_callback)
-  dpg.add_text("No Submission Yet", tag="response", wrap=tools_width - 20)
 
   corner_bottom_offset = 300
   dpg.add_image("corner_tex_0", tag="corner_img_0", pos=[0, screen_height - corner_bottom_offset])
