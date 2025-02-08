@@ -9,7 +9,7 @@ import dearpygui.dearpygui as dpg
 
 class Logic:
   def __init__(self, shown, button_width, button_height, corner_width, corner_height) -> None:
-    self.dataset_path = "D:\\school\\videa\\seaPics"
+    self.dataset_path = "C:\\school\\MVK"
     self.shown = shown
     self.button_width = button_width
     self.button_height = button_height

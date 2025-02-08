@@ -15,9 +15,10 @@ class Model:
     self.model, _, self.preprocess = open_clip.create_model_and_transforms('ViT-B-32',
       pretrained='laion2b_s34b_b79k', device=self.device)
     self.tokenizer = open_clip.get_tokenizer('ViT-B-32')
-    self.features = self.load_clip_old().to(self.device)
-    self.corner_features = [corner.to(self.device) for corner in self.load_clip_quarters_old()]
+    self.features = self.load_clip().to(self.device)
+    self.corner_features = [corner.to(self.device) for corner in self.load_clip_quarters()]
     self.detection_boxes = self.load_detection_boxes()
+    self.box_features = self.load_clip()
 
     self.model.eval()
 
@@ -139,13 +140,6 @@ class Model:
       distances = 1 - (F.normalize(torch.unsqueeze(corner_feature, 0)) @ F.normalize(self.features).T)
       corner_distances.append(distances)
 
-    #total_distances = corner_distances[0]
-    #for i in range(1, len(corner_distances)):
-      #total_distances += corner_distances[i]
-
-    #sorted_indices = torch.argsort(total_distances)[0]
-    #return sorted_indices
-
     sortings = [torch.argsort(corner_distances[i])[0].to("cpu") for i in range(4)]
     scores = np.zeros(self.image_count)
 
@@ -179,24 +173,16 @@ class Model:
     with open('corner_features_strong.pickle', 'rb') as handle:
       return pickle.load(handle)
     
-  def load_clip_quarters_old(self):
-    with open('corner_features.pickle', 'rb') as handle:
-      return pickle.load(handle)
-
-    concat = torch.concat(features)
-
-    with open('features.pickle', 'wb') as handle:
-      pickle.dump(concat, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
   def load_clip(self):
-    with open('features.pickle', 'rb') as handle:
-      return pickle.load(handle)
-    
-  def load_clip_old(self):
-    with open('features_old.pkl', 'rb') as handle:
-    #with open('embeds/features.pickle', 'rb') as handle:
-      return pickle.load(handle)
+    with open('features/wholeFeatures.pickle', 'rb') as handle:
+      # there is only one segment, return it instead
+      return pickle.load(handle)[0]
 
   def load_detection_boxes(self):
     with open('features/detectionBoxes.pickle', 'rb') as handle:
+      return pickle.load(handle)
+    
+  def load_box_features(self):
+    with open('features/boxFeatures.pickle', 'rb') as handle:
+      # a list of 2D tensors with rows for each box and columns as features
       return pickle.load(handle)
