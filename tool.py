@@ -9,14 +9,13 @@ from lib.logic import Logic
 from lib.detectionBoxes import *
 
 def get_texture_tag(row, col):
-   return f"tex_{row}_{col}"
+  return f"tex_{row}_{col}"
 
 def get_img_tag(row, col):
-   return f"img_{row}_{col}"
+  return f"img_{row}_{col}"
 
 def get_border_tag(row, col):
-   return f"rect_{row}_{col}"
-
+  return f"rect_{row}_{col}"
 
 dpg.create_context()
 dpg.create_viewport()
