@@ -38,6 +38,9 @@ button_height = screen_height // button_rows - 5
 corner_width = tools_width // 2
 corner_height = corner_width // 2
 
+yolo_width = tools_width
+yolo_height = tools_width // 2
+
 logic = Logic(shown, button_width, button_height, corner_width, corner_height)
 
 previous_text = ""
@@ -457,6 +460,11 @@ with dpg.texture_registry() as registry:
   dpg.add_dynamic_texture(width=corner_width, height=corner_height, default_value=default_corners[2], tag="corner_tex_2")
   dpg.add_dynamic_texture(width=corner_width, height=corner_height, default_value=default_corners[3], tag="corner_tex_3")
 
+  # create a white rectangle (with an alpha of 0.5) for yolo drawings
+  background_pixel = np.array([[255, 255, 255, 127]], dtype=np.uint8)
+  default_yolo = np.repeat(background_pixel, yolo_width * yolo_height, axis=0).flatten() / 255
+  dpg.add_static_texture(width=yolo_width, height=yolo_height, default_value=default_yolo, tag="yolo_tex")
+
 with dpg.item_handler_registry(tag="image click handler"):
   dpg.add_item_clicked_handler(callback=img_click_callback)
 
@@ -542,6 +550,9 @@ with dpg.window(label="Tool Window", width=tools_width, height=screen_height, no
   dpg.add_image("corner_tex_1", tag="corner_img_1", pos=[0, screen_height - corner_bottom_offset + corner_height])
   dpg.add_image("corner_tex_2", tag="corner_img_2", pos=[corner_width, screen_height - corner_bottom_offset])
   dpg.add_image("corner_tex_3", tag="corner_img_3", pos=[corner_width, screen_height - corner_bottom_offset + corner_height])
+
+  # yolo drawing img
+  dpg.add_image("yolo_tex", tag="yolo_img", pos=[0, screen_height - corner_bottom_offset + 150])
 
 rect_ids = []
 with dpg.window(label="Image Window", width=images_width, height=screen_height, no_collapse=True, no_resize=True, no_close=True, no_move=True, no_title_bar=True, pos=[tools_width, 0]) as window:
