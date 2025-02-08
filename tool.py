@@ -42,8 +42,6 @@ yolo_width = tools_width
 yolo_height = tools_width // 2
 yolo_y_pos = screen_height - yolo_height - 50
 
-print(yolo_width, yolo_height)
-
 logic = Logic(shown, button_width, button_height, corner_width, corner_height)
 
 previous_text = ""
@@ -359,13 +357,44 @@ def img_click_callback(sender, app_data):
     logic.selected_images = [img_data["imgIdx"]]
   update_selected_images_text()
 
-def yolo_click_callback(sender, app_data):
+# coordinates of the drawn yolo detection box
+drawing = False
+drawing_start_x = 0
+drawing_start_y = 0
+drawing_stop_x = 0
+drawing_stop_y = 0
+
+def yolo_mouse_down_callback(sender, app_data):
+  global drawing, drawing_start_x, drawing_start_y, drawing_stop_x, drawing_stop_y
+
   position = dpg.get_mouse_pos(local=False)
-  img_pos_x = position[0] - 4 # remove window margin
-  img_pos_y = position[1] - yolo_y_pos
+  x = position[0] - 4 # remove window margin
+  y = position[1] - yolo_y_pos
 
+  # check whether the mouse is inside the bounds
+  if x < 0 or x >= yolo_width or y < 0 or y >= yolo_height:
+    return
 
-  print(img_pos_x, img_pos_y)
+  if not drawing:
+    drawing_start_x, drawing_start_y = x, y
+    drawing = True
+  else:
+    drawing_stop_x, drawing_stop_y = x, y
+    dpg.delete_item("rect")
+    x_offset = -3
+    y_offset = -7
+    dpg.draw_rectangle(
+      [drawing_start_x + x_offset, drawing_start_y + y_offset + yolo_y_pos],
+      [x + x_offset, y + y_offset + yolo_y_pos],
+      tag="rect",
+      thickness=1,
+      color=[255,255,150],
+      parent=tools
+    )
+
+def yolo_mouse_release_callback(sender, app_data):
+  global drawing
+  drawing = False
 
 def score_search_shortcut():
   if shortcuts_disabled:
@@ -479,8 +508,9 @@ with dpg.texture_registry() as registry:
 with dpg.item_handler_registry(tag="image click handler"):
   dpg.add_item_clicked_handler(callback=img_click_callback)
 
-with dpg.item_handler_registry(tag="yolo click handler"):
-  dpg.add_item_clicked_handler(callback=yolo_click_callback)
+with dpg.handler_registry():
+    dpg.add_mouse_down_handler(callback=yolo_mouse_down_callback)
+    dpg.add_mouse_release_handler(callback=yolo_mouse_release_callback)
 
 with dpg.handler_registry():
   dpg.add_key_press_handler(key=dpg.mvKey_Left, callback=go_back_shortcut)
@@ -567,7 +597,6 @@ with dpg.window(label="Tool Window", width=tools_width, height=screen_height, no
 
   # yolo drawing img
   dpg.add_image("yolo_tex", tag="yolo_img", pos=[0, yolo_y_pos])
-  dpg.bind_item_handler_registry("yolo_img", "yolo click handler")
 
 rect_ids = []
 with dpg.window(label="Image Window", width=images_width, height=screen_height, no_collapse=True, no_resize=True, no_close=True, no_move=True, no_title_bar=True, pos=[tools_width, 0]) as window:
