@@ -19,6 +19,7 @@ class Logic:
 
     # get images address
     self.filenames = []
+    self.annotated_filenames = []
     self.video_to_frame_indices_map = {}
     self.frame_idx_to_frame_path_map = {}
 
@@ -33,6 +34,11 @@ class Logic:
         self.frame_idx_to_frame_path_map[idx] = filename
         idx += 1
       self.video_to_frame_indices_map[dirpath] = video_indices
+
+    for filename in self.filenames:
+      annotated_filename = filename.replace("MVK", "MVKout")
+      self.annotated_filenames.append(annotated_filename)
+
 
     # contains top_result lists of previous actions
     self.history = []
@@ -61,8 +67,12 @@ class Logic:
     with open('image_cache_dpg_raw.pickle', 'rb') as handle:
       return pickle.load(handle)
     
-  def get_dpg_image(self, idx):
-    image = Image.open(self.filenames[idx]).resize((self.button_width, self.button_height))
+  def get_dpg_image(self, idx, annotate=False):
+    filename = self.filenames[idx]
+    if annotate:
+      filename = self.annotated_filenames[idx]
+    
+    image = Image.open(filename).resize((self.button_width, self.button_height))
     image.putalpha(255)
     dpg_image = np.frombuffer(image.tobytes(), dtype=np.uint8) / 255.0
     return dpg_image
@@ -76,8 +86,12 @@ class Logic:
     dpg_corners = [np.frombuffer(corner.tobytes(), dtype=np.uint8) / 255.0 for corner in resized]
     return dpg_corners
   
-  def get_resized_dpg_image(self, idx, width, height):
-    image = Image.open(self.filenames[idx]).resize((width, height))
+  def get_resized_dpg_image(self, idx, width, height, annotate=False):
+    filename = self.filenames[idx]
+    if annotate:
+      filename = self.annotated_filenames[idx]
+
+    image = Image.open(filename).resize((width, height))
     image.putalpha(255)
     dpg_image = np.frombuffer(image.tobytes(), dtype=np.uint8) / 255.0
     return dpg_image

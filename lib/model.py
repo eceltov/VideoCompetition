@@ -12,13 +12,15 @@ class Model:
     self.device = "cuda"
     self.print_debug = False
 
+    self.frame_size = [682, 384]
+
     self.model, _, self.preprocess = open_clip.create_model_and_transforms('ViT-B-32',
       pretrained='laion2b_s34b_b79k', device=self.device)
     self.tokenizer = open_clip.get_tokenizer('ViT-B-32')
     self.features = self.load_clip().to(self.device)
     self.corner_features = [corner.to(self.device) for corner in self.load_clip_quarters()]
     self.detection_boxes = self.load_detection_boxes()
-    self.box_features = self.load_clip()
+    self.box_features = self.load_box_features()
 
     self.model.eval()
 
@@ -104,6 +106,68 @@ class Model:
 
     return sorted_indices
   
+  def search_clip_boxes_only(self, source_box, text: str) -> list[int]:
+    box_features_indices = []
+    selected_box_features = []
+
+    for frame_idx in range(self.image_count):
+      box_idx = self.detection_boxes.get_best_IoU_box_idx(source_box, self.frame_size, frame_idx)
+      # only use box features
+      if box_idx != -1:
+        box_features_indices.append(frame_idx)
+        selected_box_features.append(self.box_features[frame_idx][box_idx].view(1, self.features.shape[1]))
+
+    # create tensor from collected box features
+    selected_box_features = torch.concat(selected_box_features).to(self.device)
+
+    query = self.tokenizer(text).to(self.device)
+
+    with torch.no_grad(), torch.cuda.amp.autocast():
+      text_features = self.model.encode_text(query)
+
+      distances = 1 - (F.normalize(text_features) @ F.normalize(selected_box_features).T)
+
+      sorted_indices = torch.argsort(distances)[0]
+
+    # convert feature rankings to feature indices
+    projected_indices = torch.zeros(sorted_indices.shape, dtype=sorted_indices.dtype)
+    for i in range(len(box_features_indices)):
+      projected_indices[i] = box_features_indices[sorted_indices[i]]
+
+    print(f"<box indices: {len(box_features_indices)}/{self.image_count}>", end=" ")
+
+    return projected_indices
+  
+  def search_clip_boxes(self, source_box, text: str) -> list[int]:
+    box_features_count = 0
+
+    # construct a feature tensor for the given source box
+    selected_box_features = torch.zeros(self.features.shape, dtype=self.features.dtype)
+    for frame_idx in range(self.image_count):
+      box_idx = self.detection_boxes.get_best_IoU_box_idx(source_box, self.frame_size, frame_idx)
+      # use whole features if there is no localization candidate
+      if box_idx == -1:
+        selected_box_features[frame_idx] = self.features[frame_idx]
+      # use box features if they have bigger IoU than the whole image box
+      else:
+        box_features_count += 1
+        selected_box_features[frame_idx] = self.box_features[frame_idx][box_idx]
+
+    selected_box_features = selected_box_features.to(self.device)
+
+    query = self.tokenizer(text).to(self.device)
+
+    with torch.no_grad(), torch.cuda.amp.autocast():
+      text_features = self.model.encode_text(query)
+
+      distances = 1 - (F.normalize(text_features) @ F.normalize(selected_box_features).T)
+
+      sorted_indices = torch.argsort(distances)[0]
+
+    print(f"<box indices: {box_features_count}/{self.image_count}>", end=" ")
+
+    return sorted_indices
+  
   def search_clip_corners(self, texts: list[str]) -> list[int]:
     queries = []
     for i in range(4):
@@ -170,7 +234,7 @@ class Model:
     return corners
   
   def load_clip_quarters(self):
-    with open('corner_features_strong.pickle', 'rb') as handle:
+    with open('features/cornerFeatures.pickle', 'rb') as handle:
       return pickle.load(handle)
     
   def load_clip(self):

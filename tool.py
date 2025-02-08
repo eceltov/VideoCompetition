@@ -153,6 +153,58 @@ def search_clip_shortcut():
     view_full_image_shortcut()
   print(time.time() - startTime)
 
+
+previous_source_box = [0, 0, 0, 0]
+def search_clip_boxes_shortcut(model_search_method):
+  global previous_text_prompt
+  global previous_top_results
+  global previous_prompt_repetition
+  global previous_source_box
+
+  if shortcuts_disabled:
+    return
+
+  hide_input()
+
+  source_box = [
+    drawing_start_x / yolo_width * logic.model.frame_size[0],
+    drawing_start_y / yolo_height * logic.model.frame_size[1],
+    drawing_stop_x / yolo_width * logic.model.frame_size[0],
+    drawing_stop_y / yolo_height * logic.model.frame_size[1],
+  ]
+
+  # check whether the request is a continuation of the previous search
+  matches_previous_source_box = True
+  for i in range(4):
+    if previous_source_box[i] != source_box[i]:
+      matches_previous_source_box = False
+      break
+
+  text = dpg.get_value("search")
+  if text == previous_text_prompt and matches_previous_source_box:
+    previous_prompt_repetition += 1
+  else:
+    previous_prompt_repetition = 0
+  previous_text_prompt = text
+  previous_source_box = source_box
+
+  startTime = time.time()
+  print(text, end=" ")
+
+  if previous_prompt_repetition == 0:
+    # scale to frame
+    previous_top_results = model_search_method(source_box, text)
+
+  logic.append_history(previous_top_results[(shown * previous_prompt_repetition):(shown * (previous_prompt_repetition + 1))].tolist())
+
+  display_images()
+  set_shortcuts_disabled(False)
+
+  # hide full image if searching
+  if viewing_full_image:
+    view_full_image_shortcut()
+  print(time.time() - startTime)
+
 def search_clip_corners_shortcut():
   texts = [dpg.get_value(f"search_{i}") for i in range(4)]
 
@@ -223,7 +275,7 @@ def display_images():
   global displayed_images_count
 
   top_result = logic.history[logic.history_idx]
-  images = [logic.get_dpg_image(top_result[i]) for i in range(len(top_result))]
+  images = [logic.get_dpg_image(top_result[i], show_frame_annotations) for i in range(len(top_result))]
 
   remove_images_and_textures()
 
@@ -234,22 +286,6 @@ def display_images():
     img_data["imgIdx"] = top_result[i]
       
   displayed_images_count = len(top_result)
-  hide_borders()
-  update_non_zero_scores_text()
-
-def display_images2():
-  top_result = logic.history[logic.history_idx]
-  images = [logic.get_dpg_image(top_result[i]) for i in range(len(top_result))]
-
-  for i in range(len(top_result)):
-    row, col = get_row_col_from_idx(i)
-    show_image(row, col)
-    image = images[i]
-    dpg.set_value(get_texture_tag(row, col), image)
-    img_data = dpg.get_item_user_data(get_img_tag(row, col))
-    img_data["imgIdx"] = top_result[i]
-      
-  hide_images(len(top_result))
   hide_borders()
   update_non_zero_scores_text()
 
@@ -270,6 +306,15 @@ def go_forward_shortcut():
   if logic.history_idx < len(logic.history) - 1:
     logic.history_idx += 1
     display_images()
+
+show_frame_annotations = False
+def toggle_annotations_shortcut():
+  global show_frame_annotations
+  if shortcuts_disabled:
+    return
+  
+  show_frame_annotations = not show_frame_annotations
+  display_images()
 
 def show_video_shortcut():
   if shortcuts_disabled:
@@ -470,7 +515,7 @@ def view_full_image_shortcut():
   
   hide_images(0)
   
-  dkp_img = logic.get_resized_dpg_image(logic.selected_images[0], images_width, screen_height)
+  dkp_img = logic.get_resized_dpg_image(logic.selected_images[0], images_width, screen_height, show_frame_annotations)
   with dpg.texture_registry():
     dpg.add_static_texture(width=images_width, height=screen_height, default_value=dkp_img, tag="full image texture tag")
   dpg.add_image("full image texture tag", tag="full image tag", pos=[0, 0], parent=window)
@@ -483,11 +528,6 @@ def reset_scores_shortcut():
 
 def toggle_shortcuts_callback():
   set_shortcuts_disabled(not shortcuts_disabled)
-
-def send_text_shortcut():
-  text = dpg.get_value("text")
-  # there is no send text functionality
-  # send_text(text)
 
 with dpg.texture_registry() as registry:
   for row in range(button_rows):
@@ -517,6 +557,10 @@ with dpg.handler_registry():
   dpg.add_key_press_handler(key=dpg.mvKey_Right, callback=go_forward_shortcut)
   dpg.add_key_press_handler(key=dpg.mvKey_V, callback=show_video_shortcut)
   dpg.add_key_press_handler(key=dpg.mvKey_Return, callback=search_clip_shortcut)
+  dpg.add_key_press_handler(key=dpg.mvKey_B, callback=lambda: search_clip_boxes_shortcut(logic.model.search_clip_boxes_only))
+  dpg.add_key_press_handler(key=dpg.mvKey_N, callback=lambda: search_clip_boxes_shortcut(logic.model.search_clip_boxes))
+  dpg.add_key_press_handler(key=dpg.mvKey_A, callback=toggle_annotations_shortcut
+)
   dpg.add_key_press_handler(key=dpg.mvKey_S, callback=score_search_shortcut)
   dpg.add_key_press_handler(key=dpg.mvKey_Control, callback=reset_scores_shortcut)
   dpg.add_key_press_handler(key=dpg.mvKey_I, callback=view_full_image_shortcut)
@@ -538,7 +582,7 @@ with dpg.handler_registry():
   dpg.add_key_press_handler(key=dpg.mvKey_F9, callback=increase_alpha_shortcut)
   dpg.add_key_press_handler(key=dpg.mvKey_F10, callback=decrease_alpha_shortcut)
 
-  dpg.add_key_press_handler(key=dpg.mvKey_F11, callback=send_text_shortcut)
+  dpg.add_key_press_handler(key=dpg.mvKey_F11, callback=toggle_shortcuts_callback)
   dpg.add_key_press_handler(key=dpg.mvKey_F12, callback=(lambda: focus_input_shortcut(False)))
 
 with dpg.window(label="Tool Window", width=tools_width, height=screen_height, no_collapse=True, no_resize=True, no_close=True, no_move=True, no_title_bar=True) as tools:
@@ -554,10 +598,12 @@ with dpg.window(label="Tool Window", width=tools_width, height=screen_height, no
   dpg.add_text("[Right] Go Forward [d]")
   dpg.add_text("[V] Show Video [d]")
   dpg.add_text("[Return] Prompt Search")
+  dpg.add_text("[B] Prompt Box-Only Search [d]")
+  dpg.add_text("[N] Prompt Box Search [d]")
   dpg.add_text("[S] Score Search [d]")
   dpg.add_text("[Ctrl] Reset Scores")
   dpg.add_text("[I] Toggle Big Image [d]")
-  dpg.add_text("[F12] Focus Prompt")
+  dpg.add_text("[A] Toggle Annotations [d]")
   dpg.add_text("[LShift] Focus Empty Prompt")
   dpg.add_text("[Q] Blacklist Frames [d]")
   dpg.add_text("[W] Blacklist Videos [d]")
@@ -566,6 +612,8 @@ with dpg.window(label="Tool Window", width=tools_width, height=screen_height, no
   dpg.add_text("[F5-F8] Increase Corner Weight", wrap=tools_width - 20)
   dpg.add_text("[F9] Increase Alpha")
   dpg.add_text("[F10] Decrease Alpha")
+  dpg.add_text("[F11] Toggle Shortcuts")
+  dpg.add_text("[F12] Focus Prompt")
 
   dpg.add_text("")
 

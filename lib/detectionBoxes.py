@@ -54,10 +54,8 @@ class DetectionBoxes:
     # the default best IoU and box index is of the whole frame
     best_IoU = self.get_box_IoU(source_box, whole_frame_box)
     best_box_idx = -1
-    print("whole:", best_IoU)
     for box_idx in range(self.counts[frame_idx]):
       IoU = self.get_box_IoU(source_box, self.get_box(frame_idx, box_idx))
-      print(box_idx, IoU)
       if IoU > best_IoU:
         best_IoU = IoU
         best_box_idx = box_idx
