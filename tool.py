@@ -6,6 +6,7 @@ import pickle
 import time
 import array
 from lib.logic import Logic
+from lib.detectionBoxes import *
 
 def get_texture_tag(row, col):
    return f"tex_{row}_{col}"

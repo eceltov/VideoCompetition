@@ -11,20 +11,13 @@ class Model:
   def __init__(self) -> None:
     self.device = "cuda"
     self.print_debug = False
-    self.using_old_model = True
 
-    if self.using_old_model:
-      self.model, _, self.preprocess = open_clip.create_model_and_transforms('ViT-B-32',
-        pretrained='laion2b_s34b_b79k', device=self.device)
-      self.tokenizer = open_clip.get_tokenizer('ViT-B-32')
-      self.features = self.load_clip_old().to(self.device)
-      self.corner_features = [corner.to(self.device) for corner in self.load_clip_quarters_old()]
-    else:
-      self.model, _, self.preprocess = open_clip.create_model_and_transforms('ViT-H-14-378-quickgelu',
-        pretrained='dfn5b', device=self.device)
-      self.tokenizer = open_clip.get_tokenizer('ViT-H-14-378-quickgelu')
-      self.features = self.load_clip().to(self.device)
-      self.corner_features = [corner.to(self.device) for corner in self.load_clip_quarters()]
+    self.model, _, self.preprocess = open_clip.create_model_and_transforms('ViT-B-32',
+      pretrained='laion2b_s34b_b79k', device=self.device)
+    self.tokenizer = open_clip.get_tokenizer('ViT-B-32')
+    self.features = self.load_clip_old().to(self.device)
+    self.corner_features = [corner.to(self.device) for corner in self.load_clip_quarters_old()]
+    self.detection_boxes = self.load_detection_boxes()
 
     self.model.eval()
 
@@ -202,4 +195,8 @@ class Model:
   def load_clip_old(self):
     with open('features_old.pkl', 'rb') as handle:
     #with open('embeds/features.pickle', 'rb') as handle:
+      return pickle.load(handle)
+
+  def load_detection_boxes(self):
+    with open('features/detectionBoxes.pickle', 'rb') as handle:
       return pickle.load(handle)
