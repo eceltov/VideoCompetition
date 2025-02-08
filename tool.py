@@ -40,6 +40,9 @@ corner_height = corner_width // 2
 
 yolo_width = tools_width
 yolo_height = tools_width // 2
+yolo_y_pos = screen_height - yolo_height - 50
+
+print(yolo_width, yolo_height)
 
 logic = Logic(shown, button_width, button_height, corner_width, corner_height)
 
@@ -356,6 +359,14 @@ def img_click_callback(sender, app_data):
     logic.selected_images = [img_data["imgIdx"]]
   update_selected_images_text()
 
+def yolo_click_callback(sender, app_data):
+  position = dpg.get_mouse_pos(local=False)
+  img_pos_x = position[0] - 4 # remove window margin
+  img_pos_y = position[1] - yolo_y_pos
+
+
+  print(img_pos_x, img_pos_y)
+
 def score_search_shortcut():
   if shortcuts_disabled:
     return
@@ -468,6 +479,9 @@ with dpg.texture_registry() as registry:
 with dpg.item_handler_registry(tag="image click handler"):
   dpg.add_item_clicked_handler(callback=img_click_callback)
 
+with dpg.item_handler_registry(tag="yolo click handler"):
+  dpg.add_item_clicked_handler(callback=yolo_click_callback)
+
 with dpg.handler_registry():
   dpg.add_key_press_handler(key=dpg.mvKey_Left, callback=go_back_shortcut)
   dpg.add_key_press_handler(key=dpg.mvKey_Right, callback=go_forward_shortcut)
@@ -552,7 +566,8 @@ with dpg.window(label="Tool Window", width=tools_width, height=screen_height, no
   dpg.add_image("corner_tex_3", tag="corner_img_3", pos=[corner_width, screen_height - corner_bottom_offset + corner_height])
 
   # yolo drawing img
-  dpg.add_image("yolo_tex", tag="yolo_img", pos=[0, screen_height - corner_bottom_offset + 150])
+  dpg.add_image("yolo_tex", tag="yolo_img", pos=[0, yolo_y_pos])
+  dpg.bind_item_handler_registry("yolo_img", "yolo click handler")
 
 rect_ids = []
 with dpg.window(label="Image Window", width=images_width, height=screen_height, no_collapse=True, no_resize=True, no_close=True, no_move=True, no_title_bar=True, pos=[tools_width, 0]) as window:
