@@ -526,7 +526,7 @@ def reset_scores_shortcut():
   logic.model.reset_scores()
   update_non_zero_scores_text()
 
-def toggle_shortcuts_callback():
+def toggle_shortcuts_shortcut():
   set_shortcuts_disabled(not shortcuts_disabled)
 
 with dpg.texture_registry() as registry:
@@ -582,7 +582,7 @@ with dpg.handler_registry():
   dpg.add_key_press_handler(key=dpg.mvKey_F9, callback=increase_alpha_shortcut)
   dpg.add_key_press_handler(key=dpg.mvKey_F10, callback=decrease_alpha_shortcut)
 
-  dpg.add_key_press_handler(key=dpg.mvKey_F11, callback=toggle_shortcuts_callback)
+  dpg.add_key_press_handler(key=dpg.mvKey_F11, callback=toggle_shortcuts_shortcut)
   dpg.add_key_press_handler(key=dpg.mvKey_F12, callback=(lambda: focus_input_shortcut(False)))
 
 with dpg.window(label="Tool Window", width=tools_width, height=screen_height, no_collapse=True, no_resize=True, no_close=True, no_move=True, no_title_bar=True) as tools:
@@ -592,7 +592,7 @@ with dpg.window(label="Tool Window", width=tools_width, height=screen_height, no
   dpg.add_text("alpha: 0.5", tag="alpha")
   dpg.add_text("")
   dpg.add_text("Shortcuts ENABLED", tag="shortcut status")
-  dpg.add_button(label="Toggle Shortcuts", callback=toggle_shortcuts_callback)
+  dpg.add_button(label="Toggle Shortcuts", callback=toggle_shortcuts_shortcut)
   dpg.add_text("")
   dpg.add_text("[Left] Go Back [d]")
   dpg.add_text("[Right] Go Forward [d]")

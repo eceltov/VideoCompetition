@@ -8,6 +8,7 @@ from PIL import Image
 import math
 
 class Model:
+  # init globals and load model
   def __init__(self) -> None:
     self.device = "cuda"
     self.print_debug = False
@@ -106,6 +107,7 @@ class Model:
 
     return sorted_indices
   
+  # searches in detection boxes and ignores whole features
   def search_clip_boxes_only(self, source_box, text: str) -> list[int]:
     box_features_indices = []
     selected_box_features = []
@@ -138,6 +140,7 @@ class Model:
 
     return projected_indices
   
+  # searches in detection boxes and whole features
   def search_clip_boxes(self, source_box, text: str) -> list[int]:
     box_features_count = 0
 
@@ -168,6 +171,7 @@ class Model:
 
     return sorted_indices
   
+  # searches in each corner using text and aggregates the rankings
   def search_clip_corners(self, texts: list[str]) -> list[int]:
     queries = []
     for i in range(4):
@@ -197,6 +201,7 @@ class Model:
 
     return sorted_indices
   
+  # searches in each corner using image similarity and aggregates the rankings
   def search_clip_image_corners(self):
     corner_distances = []
     for i in range(4):
@@ -213,6 +218,7 @@ class Model:
 
     return np.argsort(scores)
 
+  # returns an image segment for every corner
   def get_image_corners(self, filename):
     image = Image.open(filename)
     width, height = image.size
@@ -224,13 +230,7 @@ class Model:
       (width // 2, height // 2, width, height), # right lower
     ]
 
-    corners = [
-      image.crop(boundaries[0]),
-      image.crop(boundaries[1]),
-      image.crop(boundaries[2]),
-      image.crop(boundaries[3]),
-    ]
-
+    corners = [image.crop(boundary) for boundary in boundaries]
     return corners
   
   def load_clip_quarters(self):
